@@ -1,8 +1,10 @@
 from flask import Flask, request
+from cupola import Cupola
 
 app = Flask(__name__)
 server_transaction_id = 0
 connected = False
+dome = Cupola()
 
 
 @app.route('/')
@@ -60,22 +62,30 @@ def commandstring():
 
 
 @app.route('/api/v1/dome/0/connected', methods=['PUT'])
-def connected_put():
+async def connected_put():
     global server_transaction_id
     global connected
+    global dome
     server_transaction_id += 1
     req = {k.lower(): v for k, v in request.form.items()}
     client_id = int(req.get('clientid'))
     client_transaction_id = int(req.get('clienttransactionid'))
 
     if req.get('connected').lower() == 'true':
-        connected = True
-        ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
-               "ErrorNumber": 0, "ErrorMessage": ""}
+        connected = await dome.connect()
+        if connected:
+            ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,"ErrorNumber": 0, "ErrorMessage": ""}
+        else:
+            ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,"ErrorNumber": 0x407, "ErrorMessage": "Connection failure"}
+
     elif req.get('connected').lower() == 'false':
-        connected = False
-        ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
-               "ErrorNumber": 0, "ErrorMessage": ""}
+        disconnected = await dome.disconnect()
+        if disconnected:
+            ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+                   "ErrorNumber": 0, "ErrorMessage": ""}
+        else:
+            ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+                   "ErrorNumber": 0x407, "ErrorMessage": "Connection failure"}
     else:
         ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
                "ErrorNumber": 0x401, "ErrorMessage": "Invalid value"}
