@@ -136,7 +136,7 @@ def interfaceversion():
     req = {k.lower(): v for k, v in request.args.items()}
     client_id = int(req.get('clientid'))
     client_transaction_id = int(req.get('clienttransactionid'))
-    ret = {"Value":0, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+    ret = {"Value":1, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
            "ErrorNumber": 0, "ErrorMessage": ""}
     return ret
 
@@ -160,6 +160,300 @@ def supportedactions():
     client_transaction_id = int(req.get('clienttransactionid'))
     ret = {"Value": [], "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
            "ErrorNumber": 0, "ErrorMessage": ""}
+    return ret
+
+
+# Dome Specific Methods
+
+@app.route('/api/v1/dome/0/altitude', methods=['GET'])
+def altitude():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.args.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"Value": 0, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0, "ErrorMessage": ""}
+    return ret
+
+@app.route('/api/v1/dome/0/athome', methods=['GET'])
+def athome():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.args.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"Value": False, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0, "ErrorMessage": ""}
+    return ret
+
+@app.route('/api/v1/dome/0/atpark', methods=['GET'])
+def atpark():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.args.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"Value": False, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0, "ErrorMessage": ""}
+    return ret
+
+@app.route('/api/v1/dome/0/azimuth', methods=['GET'])
+def azimuth():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.args.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"Value": 0, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0, "ErrorMessage": ""}
+    return ret
+
+@app.route('/api/v1/dome/0/canfindhome', methods=['GET'])
+def canfindhome():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.args.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"Value": False, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0, "ErrorMessage": ""}
+    return ret
+
+
+@app.route('/api/v1/dome/0/canpark', methods=['GET'])
+def canpark():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.args.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"Value": False, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0, "ErrorMessage": ""}
+    return ret
+
+
+@app.route('/api/v1/dome/0/cansetaltitude', methods=['GET'])
+def cansetaltitude():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.args.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"Value": False, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0, "ErrorMessage": ""}
+    return ret
+
+
+@app.route('/api/v1/dome/0/cansetazimuth', methods=['GET'])
+def cansatazimuth():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.args.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"Value": False, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0, "ErrorMessage": ""}
+    return ret
+
+
+@app.route('/api/v1/dome/0/cansetpark', methods=['GET'])
+def cansetpark():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.args.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"Value": False, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0, "ErrorMessage": ""}
+    return ret
+
+
+@app.route('/api/v1/dome/0/cansetshutter', methods=['GET'])
+def cansetshutter():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.args.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"Value": False, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0, "ErrorMessage": ""}
+    return ret
+
+
+@app.route('/api/v1/dome/0/canslave', methods=['GET'])
+def canslave():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.args.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"Value": False, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0, "ErrorMessage": ""}
+    return ret
+
+
+@app.route('/api/v1/dome/0/cansyncazimuth', methods=['GET'])
+def cansyncazimuth():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.args.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"Value": False, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0, "ErrorMessage": ""}
+    return ret
+
+
+@app.route('/api/v1/dome/0/shutterstatus', methods=['GET'])
+def shutterstatus():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.args.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0x400, "ErrorMessage": "Not implemented"}
+    return ret
+
+
+@app.route('/api/v1/dome/0/slaved', methods=['GET'])
+def slaved_get():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.args.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"Value": False, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0, "ErrorMessage": ""}
+    return ret
+
+
+@app.route('/api/v1/dome/0/slaved', methods=['PUT'])
+def slaved_put():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.form.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0x400, "ErrorMessage": "Not implemented"}
+    return ret
+
+
+@app.route('/api/v1/dome/0/slewing', methods=['GET'])
+def slewing():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.args.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"Value": False, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0, "ErrorMessage": ""}
+    return ret
+
+@app.route('/api/v1/dome/0/abortslew', methods=['PUT'])
+def abortslew():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.form.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0x40C, "ErrorMessage": "Not implemented"}
+    return ret
+
+
+@app.route('/api/v1/dome/0/closeshutter', methods=['PUT'])
+def closeshutter():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.form.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0x400, "ErrorMessage": "Not implemented"}
+    return ret
+
+
+@app.route('/api/v1/dome/0/findhome', methods=['PUT'])
+def findhome():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.form.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0x400, "ErrorMessage": "Not implemented"}
+    return ret
+
+
+@app.route('/api/v1/dome/0/openshutter', methods=['PUT'])
+def openshutter():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.form.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0x400, "ErrorMessage": "Not implemented"}
+    return ret
+
+
+@app.route('/api/v1/dome/0/park', methods=['PUT'])
+def park():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.form.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0x400, "ErrorMessage": "Not implemented"}
+    return ret
+
+
+@app.route('/api/v1/dome/0/setpark', methods=['PUT'])
+def setpark():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.form.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0x400, "ErrorMessage": "Not implemented"}
+    return ret
+
+@app.route('/api/v1/dome/0/slewtoaltitude', methods=['PUT'])
+def slewtoaltitude():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.form.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0x400, "ErrorMessage": "Not implemented"}
+    return ret
+
+@app.route('/api/v1/dome/0/slewtoazimuth', methods=['PUT'])
+def slewtoazimuth():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.form.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0x400, "ErrorMessage": "Not implemented"}
+    return ret
+
+@app.route('/api/v1/dome/0/synctoazimuth', methods=['PUT'])
+def synctoazimuth():
+    global server_transaction_id
+    server_transaction_id += 1
+    req = {k.lower(): v for k, v in request.form.items()}
+    client_id = int(req.get('clientid'))
+    client_transaction_id = int(req.get('clienttransactionid'))
+    ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+           "ErrorNumber": 0x400, "ErrorMessage": "Not implemented"}
     return ret
 
 
