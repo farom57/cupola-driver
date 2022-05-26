@@ -36,7 +36,9 @@ class Cupola(object):
             print('[connected]')
 
         await self._client.write_gatt_char(self._STATE_UUID, bytearray([5]))
-        # print('[running]')
+        print('[running]')
+        await asyncio.sleep(30)
+        print('[stop]')
         # while self._client.is_connected:
         #     try:
         #         val = await self._client.read_gatt_char(self._HEAD_UUID)
