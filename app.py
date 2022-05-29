@@ -420,4 +420,5 @@ async def setup():
     return render_template('setup.html', connected=dome.connected, address=dome._address)
 
 
-
+if __name__ == "__main__":
+    app.run(debug = True, port = 5555)

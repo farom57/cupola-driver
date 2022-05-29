@@ -78,7 +78,7 @@ class Cupola(object):
     async def maintain_connection(self):
         print('[connecting]')
         self._connected = await self._client.connect()
-
+        print('...')
         # signal to Cupola.connect() that it can terminate.
         self._flask_loop.call_soon_threadsafe(self._connected_event.set)
 
