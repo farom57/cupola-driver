@@ -1,15 +1,23 @@
-from flask import Flask, request
+from flask import Flask, request, Response, url_for, render_template, redirect
 from werkzeug.datastructures import MultiDict
 from cupola import Cupola
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from matplotlib.figure import Figure
+import io
+import random
 
 app = Flask(__name__)
 server_transaction_id = 0
 dome = Cupola()
 
 
+
+
 @app.route('/')
-def hello():
-    return 'Hello, World!'
+def index():
+    return redirect('setup')
+
+
 
 
 def process_request(dct: MultiDict):
@@ -41,7 +49,7 @@ def action():
 @app.route('/api/v1/dome/0/commandblind', methods=['PUT'])
 def commandblind():
     req, client_transaction_id, client_id = process_request(request.form)
-    
+
     ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
            "ErrorNumber": 0x400, "ErrorMessage": "Not implemented"}
     return ret
@@ -365,3 +373,51 @@ def synctoazimuth():
     ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
            "ErrorNumber": 0x400, "ErrorMessage": "Not implemented"}
     return ret
+
+
+@app.route('/setup/v1/dome/0/plot.png')
+def plot_png():
+    fig = create_figure()
+    output = io.BytesIO()
+    FigureCanvas(fig).print_png(output)
+    return Response(output.getvalue(), mimetype='image/png')
+
+def create_figure():
+    fig = Figure()
+    axis = fig.add_subplot(1, 1, 1)
+    data = dome.mag_measurements
+    time = [item[0] for item in data]
+    x = [item[1] for item in data]
+    y = [item[2] for item in data]
+    z = [item[3] for item in data]
+    axis.plot(time, x, time, y, time, z)
+    return fig
+
+@app.route('/setup/v1/dome/0/mag_measurements.csv')
+def mag_measurements():
+    file = "timestamp\tmag X\tmag Y\tmag Z\n"
+    for item in dome.mag_measurements:
+        file+=str(item[0])+'\t'+str(item[1])+'\t'+str(item[2])+'\t'+str(item[3])+'\n'
+    return Response(file, mimetype='text/csv')
+
+@app.route('/setup')
+def home():
+    return render_template('home.html')
+
+@app.route('/setup/v1/dome/0/setup')
+async def setup():
+    arg = request.args.get('reset')
+    if arg is not None and arg.lower()=='true':
+        dome.mag_measurements = []
+
+    arg = request.args.get('connect')
+    if arg is not None:
+        if arg.lower() == 'true':
+            await dome.connect()
+        if arg.lower() == 'false':
+            await dome.disconnect()
+
+    return render_template('setup.html', connected=dome.connected, address=dome._address)
+
+
+

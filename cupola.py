@@ -2,6 +2,7 @@ import asyncio
 from bleak import BleakScanner, BleakClient
 import struct
 from threading import Thread
+import datetime
 
 
 class Cupola(object):
@@ -13,8 +14,10 @@ class Cupola(object):
         self._client = None
         self._STATE_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503121"
         self._HEAD_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d050313a"
+        self._MAG_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503131"
         self._ALIVE_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503151"
         self._heading = None
+        self.mag_measurements = []
 
         # Start a thread to perform BLE operation in the background
         self._ble_loop = asyncio.new_event_loop()
@@ -88,7 +91,7 @@ class Cupola(object):
         # Send command to change the State to ON (start continuous IMU and mag measurements)
         await self._client.write_gatt_char(self._STATE_UUID, bytearray([5]))
         print('[running]')
-        await self._client.start_notify(self._HEAD_UUID, self.notification_handler)
+        await self._client.start_notify(self._MAG_UUID, self.notification_handler)
         print('notification enabled')
 
         # wait until the disconnection either from Cupola.disconnect() or from the device (disconnected_callback())
@@ -109,6 +112,7 @@ class Cupola(object):
         self._disconnected_event.set()
 
     async def disconnect(self):
+        print(self.mag_measurements)
         if not self._connected:
             print('already disconnected')
             return True
@@ -117,9 +121,11 @@ class Cupola(object):
             return True
 
     def notification_handler(self, sender, data):
-        """Simple notification handler which prints the data received."""
-        self._heading = struct.unpack('f', data)[0]
-        print("heading: ", self._heading)
+        ts = datetime.datetime.now().timestamp()
+        mag = [float(value) for value in data.decode().split(',')]
+        measurement = [ts, mag[0], mag[1],mag[2]]
+        print("mag: ", measurement)
+        self.mag_measurements.append(measurement)
 
     @property
     def connected(self):
