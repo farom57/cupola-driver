@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Configuration coupole</title>
+</head>
+<body>
+<h1 style="color: #5e9ca0;">Configuration</h1>
+
+<a href="../../../../setup">Retour à l'acceuil</a><br/>
+
+<h2 style="color: #2e6c80;">Log des mesures</h2>
+
+<p><img src="plot.png" alt="" /></p>
+<a href="setup?reset=true">Remise &agrave; zero</a><br/>
+<a href="setup?refresh=true">Rafraichir le graphique</a><br/>
+<a href="mag_measurements.csv">Telecharger les données</a><br/>
+
+<h2 style="color: #2e6c80;">Statut</h2>
+Connecté: {{ connected }}<br/>
+Addresse: {{ address }}<br/>
+{% if connected %}
+<a href="setup?connect=false">Deconnecter</a><br/>
+{% else %}
+<a href="setup?connect=true">Connecter</a><br/>
+{% endif %}
+
+
+<h2 style="color: #2e6c80;">Calibration</h2>
+<p>Instructions ... TODO</p>
+<a href="setup?calib=true">Lancer la calibration</a><br/>
+</body>
+</html>
