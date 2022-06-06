@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Configuration coupole</title>
+    <meta http-equiv="refresh" content="5;http://127.0.0.1:5555/setup/v1/dome/0/setup?refresh=true" >
 </head>
 <body>
 <h1 style="color: #5e9ca0;">Configuration</h1>
@@ -13,11 +14,12 @@
 <p><img src="plot.png" alt="" /></p>
 <a href="setup?reset=true">Remise &agrave; zero</a><br/>
 <a href="setup?refresh=true">Rafraichir le graphique</a><br/>
-<a href="mag_measurements.csv">Telecharger les données</a><br/>
+<a href="log_measurements.csv">Telecharger les données</a><br/>
 
 <h2 style="color: #2e6c80;">Statut</h2>
 Connecté: {{ connected }}<br/>
 Addresse: {{ address }}<br/>
+Calibré: {{ calibrated }}<br/>
 {% if connected %}
 <a href="setup?connect=false">Deconnecter</a><br/>
 {% else %}
@@ -27,6 +29,10 @@ Addresse: {{ address }}<br/>
 
 <h2 style="color: #2e6c80;">Calibration</h2>
 <p>Instructions ... TODO</p>
+Calibré: {{ calibrated }}<br/>
+Calibration en cours: {{ calibrating }}<br/>
 <a href="setup?calib=true">Lancer la calibration</a><br/>
+<p><img src="plot_calib.png" alt="" /></p>
+<a href="calib_measurements.csv">Telecharger les données</a><br/>
 </body>
 </html>

@@ -4,6 +4,7 @@ import struct
 from threading import Thread
 import datetime
 
+T_CALIB = 10
 
 class Cupola(object):
 
@@ -16,8 +17,13 @@ class Cupola(object):
         self._HEAD_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d050313a"
         self._MAG_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503131"
         self._ALIVE_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503151"
+        self._RFCMD_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503171"
         self._heading = None
-        self.mag_measurements = []
+        self.log_measurements = []
+        self.calib_measurements = []
+        self._tstart_calib = 0
+        self._calibrating = False
+        self._calibrated = False
 
         # Start a thread to perform BLE operation in the background
         self._ble_loop = asyncio.new_event_loop()
@@ -112,7 +118,7 @@ class Cupola(object):
         self._disconnected_event.set()
 
     async def disconnect(self):
-        print(self.mag_measurements)
+        print(self.log_measurements)
         if not self._connected:
             print('already disconnected')
             return True
@@ -120,16 +126,56 @@ class Cupola(object):
             self._ble_loop.call_soon_threadsafe(self._disconnect_command.set)
             return True
 
-    def notification_handler(self, sender, data):
+    async def notification_handler(self, sender, data):
         ts = datetime.datetime.now().timestamp()
         mag = [float(value) for value in data.decode().split(',')]
         measurement = [ts, mag[0], mag[1],mag[2]]
-        print("mag: ", measurement)
-        self.mag_measurements.append(measurement)
+        #print("mag: ", measurement)
+        self.log_measurements.append(measurement)
+
+        dt = ts - self._tstart_calib
+        if 0 < dt < T_CALIB:
+            print("calib ", dt/T_CALIB*100.,"%", measurement)
+            measurement_calib = [dt, mag[0], mag[1], mag[2]]
+            self.calib_measurements.append(measurement_calib)
+        if dt > T_CALIB and self._calibrating:
+            print("Stopping")
+            await self.turn_stop()
+            print("Stopped")
+            self.compute_calibration()
+            self._calibrating = False
+
+    async def start_calib(self):
+        self.calib_measurements = []
+        self._tstart_calib = datetime.datetime.now().timestamp() + 5 # start calibration in 5s to let the cupola accelerate
+        self._calibrating = True
+        asyncio.run_coroutine_threadsafe(self.turn_right(), self._ble_loop) # start rotation to the right
+
+
+    async def turn_left(self):
+        await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([3]))
+
+    async def turn_right(self):
+        await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([4]))
+
+    async def turn_stop(self):
+        await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([0]))
+
+    def compute_calibration(self):
+        self._calibrated = True
 
     @property
     def connected(self):
         return self._connected
+
+    @property
+    def calibrated(self):
+        return self._calibrated
+
+    @property
+    def calibrating(self):
+        return self._calibrating
+
 
     @property
     def heading(self):

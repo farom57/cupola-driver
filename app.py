@@ -377,15 +377,21 @@ def synctoazimuth():
 
 @app.route('/setup/v1/dome/0/plot.png')
 def plot_png():
-    fig = create_figure()
+    fig = create_figure(dome.log_measurements)
     output = io.BytesIO()
     FigureCanvas(fig).print_png(output)
     return Response(output.getvalue(), mimetype='image/png')
 
-def create_figure():
+@app.route('/setup/v1/dome/0/plot_calib.png')
+def plot_calib_png():
+    fig = create_figure(dome.calib_measurements)
+    output = io.BytesIO()
+    FigureCanvas(fig).print_png(output)
+    return Response(output.getvalue(), mimetype='image/png')
+
+def create_figure(data):
     fig = Figure()
     axis = fig.add_subplot(1, 1, 1)
-    data = dome.mag_measurements
     time = [item[0] for item in data]
     x = [item[1] for item in data]
     y = [item[2] for item in data]
@@ -393,10 +399,17 @@ def create_figure():
     axis.plot(time, x, time, y, time, z)
     return fig
 
-@app.route('/setup/v1/dome/0/mag_measurements.csv')
-def mag_measurements():
+@app.route('/setup/v1/dome/0/log_measurements.csv')
+def log_measurements():
     file = "timestamp\tmag X\tmag Y\tmag Z\n"
-    for item in dome.mag_measurements:
+    for item in dome.log_measurements:
+        file+=str(item[0])+'\t'+str(item[1])+'\t'+str(item[2])+'\t'+str(item[3])+'\n'
+    return Response(file, mimetype='text/csv')
+
+@app.route('/setup/v1/dome/0/calib_measurements.csv')
+def calib_measurements():
+    file = "timestamp\tmag X\tmag Y\tmag Z\n"
+    for item in dome.calib_measurements:
         file+=str(item[0])+'\t'+str(item[1])+'\t'+str(item[2])+'\t'+str(item[3])+'\n'
     return Response(file, mimetype='text/csv')
 
@@ -408,7 +421,7 @@ def home():
 async def setup():
     arg = request.args.get('reset')
     if arg is not None and arg.lower()=='true':
-        dome.mag_measurements = []
+        dome.log_measurements = []
 
     arg = request.args.get('connect')
     if arg is not None:
@@ -417,7 +430,11 @@ async def setup():
         if arg.lower() == 'false':
             await dome.disconnect()
 
-    return render_template('setup.html', connected=dome.connected, address=dome._address)
+    arg = request.args.get('calib')
+    if arg is not None and arg.lower()=='true':
+        await dome.start_calib()
+
+    return render_template('setup.html', connected=dome.connected, address=dome._address, calibrating=dome.calibrating, calibrated=dome.calibrated)
 
 
 if __name__ == "__main__":
