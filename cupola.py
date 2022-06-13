@@ -4,7 +4,7 @@ import struct
 from threading import Thread
 import datetime
 
-T_CALIB = 10
+T_CALIB = 600
 
 class Cupola(object):
 
@@ -55,18 +55,18 @@ class Cupola(object):
                 print('This should not happen')
                 self._connected = False
 
-        # scan ble devices (ignored if the MAC address is already known)
 
-        if self._address is None:
-            print('[scanning]')
-            devices = await BleakScanner.discover()
-            for d in devices:
-                print(d)
-                if d.name == "Cupola":
-                    self._address = d.address
-                    print(self._address)
-                    self._client = BleakClient(self._address, disconnected_callback=self.disconnected_callback)
-                    break
+
+
+        print('[scanning]')
+        devices = await BleakScanner.discover()
+        for d in devices:
+            print(d)
+            if d.name == "Cupola":
+                self._address = d.address
+                print(self._address)
+                self._client = BleakClient(self._address, disconnected_callback=self.disconnected_callback)
+                break
         if self._address is None:
             print("Error: Cupola not found")
             return False
@@ -78,6 +78,7 @@ class Cupola(object):
         self._flask_loop = asyncio.get_event_loop()
         print('[waiting connection]')
         await self._connected_event.wait()
+        self._connected_event.clear()
         print('[returned]')
         return self._connected
 
@@ -88,30 +89,54 @@ class Cupola(object):
         # signal to Cupola.connect() that it can terminate.
         self._flask_loop.call_soon_threadsafe(self._connected_event.set)
 
+
         if not self._connected:
             print('Failed to establish the connection')
             return
 
         print('[connected]')
-
-        # Send command to change the State to ON (start continuous IMU and mag measurements)
-        await self._client.write_gatt_char(self._STATE_UUID, bytearray([5]))
-        print('[running]')
         await self._client.start_notify(self._MAG_UUID, self.notification_handler)
         print('notification enabled')
 
         # wait until the disconnection either from Cupola.disconnect() or from the device (disconnected_callback())
         disconnected_event_task = asyncio.create_task(self._disconnected_event.wait())
         disconnect_command_task = asyncio.create_task(self._disconnect_command.wait())
-        done, pending = await asyncio.wait([disconnected_event_task, disconnect_command_task],
-                                           return_when=asyncio.FIRST_COMPLETED)
-        for task in pending:
-            task.cancel()
+
+        # write to the alive char every 5s. Monitor for disconnect tast or event
+        while(True):
+            read_alive_task = asyncio.create_task(self._client.read_gatt_char(self._ALIVE_UUID))
+            done, pending = await asyncio.wait([disconnected_event_task, disconnect_command_task,read_alive_task],
+                                           return_when=asyncio.FIRST_COMPLETED, timeout=5.)
+
+            if read_alive_task in pending or read_alive_task.exception() is not None: # if fail to write it's likely that the connection is dead
+                print('Disconnection caused by connection error')
+                for task in pending:
+                    task.cancel()
+                break
+
+            print("alive:",read_alive_task.result())
+
+            done, pending = await asyncio.wait([disconnected_event_task, disconnect_command_task],
+                                               return_when=asyncio.FIRST_COMPLETED, timeout=5.)
+
+            if disconnected_event_task in done:
+                print('Disconnection from the device')
+                for task in pending:
+                    task.cancel()
+                break
+            if disconnect_command_task in done:
+                print('Disconnection command')
+                for task in pending:
+                    task.cancel()
+                break
+
 
         if self._client.is_connected:
             await self._client.disconnect()
         self._connected = False
 
+        self._disconnected_event.clear()
+        self._disconnect_command.clear()
         print('[disconnected]')
 
     def disconnected_callback(self, client):
