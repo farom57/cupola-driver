@@ -1,4 +1,4 @@
-from flask import Flask, request, Response, url_for, render_template, redirect
+from flask import Flask, request, Response, url_for, render_template, redirect, abort
 from werkzeug.datastructures import MultiDict
 from cupola import Cupola
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
@@ -377,6 +377,9 @@ def synctoazimuth():
 
 @app.route('/setup/v1/dome/0/plot.png')
 def plot_png():
+    if len(dome.log_measurements) == 0:
+        abort(404)
+
     fig = create_figure(dome.log_measurements)
     output = io.BytesIO()
     FigureCanvas(fig).print_png(output)
@@ -384,20 +387,42 @@ def plot_png():
 
 @app.route('/setup/v1/dome/0/plot_calib.png')
 def plot_calib_png():
+    if len(dome.calib_measurements) == 0:
+        abort(404)
+
     fig = create_figure(dome.calib_measurements)
     output = io.BytesIO()
     FigureCanvas(fig).print_png(output)
     return Response(output.getvalue(), mimetype='image/png')
 
 def create_figure(data):
+
     fig = Figure()
-    axis = fig.add_subplot(1, 1, 1)
-    time = [item[0] for item in data]
-    x = [item[1] for item in data]
-    y = [item[2] for item in data]
-    z = [item[3] for item in data]
-    axis.plot(time, x, time, y, time, z)
+
+    if len(data[-1]) == 6:
+        ax1 = fig.add_subplot(3,1,1)
+        ax2 = fig.add_subplot(3, 1, 2)
+        ax3 = fig.add_subplot(3, 1, 3)
+        time = [item[0] for item in data]
+        x = [item[1] for item in data]
+        y = [item[2] for item in data]
+        z = [item[3] for item in data]
+        angle = [item[4] for item in data]
+        err = [item[5] for item in data]
+        ax1.plot(time, x, time, y, time, z)
+        ax2.plot(time, angle)
+        ax2.set_ylim([0,360])
+        ax3.plot(time, err)
+    else:
+        ax1 = fig.add_subplot(1,1,1)
+        time = [item[0] for item in data]
+        x = [item[1] for item in data]
+        y = [item[2] for item in data]
+        z = [item[3] for item in data]
+        ax1.plot(time, x, time, y, time, z)
+
     return fig
+
 
 @app.route('/setup/v1/dome/0/log_measurements.csv')
 def log_measurements():
@@ -433,6 +458,10 @@ async def setup():
     arg = request.args.get('calib')
     if arg is not None and arg.lower()=='true':
         await dome.start_calib()
+
+    arg = request.args.get('test')
+    if arg is not None:
+        dome.test()
 
     return render_template('setup.html', connected=dome.connected, address=dome._address, calibrating=dome.calibrating, calibrated=dome.calibrated)
 
