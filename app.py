@@ -444,9 +444,6 @@ def home():
 
 @app.route('/setup/v1/dome/0/setup')
 async def setup():
-    arg = request.args.get('reset')
-    if arg is not None and arg.lower()=='true':
-        dome.log_measurements = []
 
     arg = request.args.get('connect')
     if arg is not None:
@@ -455,16 +452,60 @@ async def setup():
         if arg.lower() == 'false':
             await dome.disconnect()
 
+    arg = request.args.get('stop')
+    if arg is not None:
+        await dome.turn_stop()
+
+    arg = request.args.get('left')
+    if arg is not None:
+        await dome.turn_left()
+
+    arg = request.args.get('right')
+    if arg is not None:
+        await dome.turn_right()
+
+    arg = request.args.get('up')
+    if arg is not None:
+        await dome.turn_up()
+
+    arg = request.args.get('down')
+    if arg is not None:
+        await dome.turn_down()
+
+    arg = request.args.get('park')
+    if arg is not None:
+        dome.turn_azimuth(dome.park_azimuth)
+
+    arg = request.args.get('home')
+    if arg is not None:
+        dome.turn_azimuth(dome.home_azimuth)
+
+    arg = request.args.get('azimuth')
+    if arg is not None:
+        dome.turn_azimuth(float(arg))
+
+    arg = request.args.get('reset')
+    if arg is not None and arg.lower() == 'true':
+        dome.log_measurements = []
+
+    return render_template('setup.html', connected=dome.connected, address=dome._address, calibrating=dome.calibrating, calibrated=dome.calibrated, command=dome.command, azimuth=dome._azimuth, err=dome.mag_error)
+
+@app.route('/setup/v1/dome/0/calib')
+async def calib():
     arg = request.args.get('calib')
-    if arg is not None and arg.lower()=='true':
+    if arg is not None:
         await dome.start_calib()
 
     arg = request.args.get('test')
     if arg is not None:
         dome.test()
 
-    return render_template('setup.html', connected=dome.connected, address=dome._address, calibrating=dome.calibrating, calibrated=dome.calibrated)
+    arg = request.args.get('save')
+    if arg is not None:
+        dome.save_settings()
 
+    return render_template('setup.html', connected=dome.connected, address=dome._address, calibrating=dome.calibrating,
+                           calibrated=dome.calibrated)
 
 if __name__ == "__main__":
     app.run(debug = True, port = 5555)

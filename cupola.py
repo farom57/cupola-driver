@@ -1,4 +1,5 @@
 import asyncio
+import pickle
 from typing import Tuple
 
 from bleak import BleakScanner, BleakClient
@@ -19,6 +20,9 @@ class Cupola(object):
 
     def __init__(self, address=None):
 
+        self.mag_error = None
+        self.command = 0
+        self._azimuth = None
         self._flask_loop = None
         self._connected = False
         self._address = address  # normally 5B:AB:B6:09:F8:CD but it may change at each new firmware
@@ -32,8 +36,14 @@ class Cupola(object):
         self.calib_measurements = []  # Size Nx4: dt, meas_x, meas_y, meas_z
         self._tstart_calib = 0  # date of calibration starting
         self._calibrating = False
+
+        # saved data, first set defaults
         self._calibrated = False
         self._calib_data = None  # numpy array size STEPS x 3: meas_x, meas_y, meas_z
+        self.calib_offset = 0
+        self.park_azimuth = None
+        self.home_azimuth = None
+        self.load_settings()
 
         # Start a thread to perform BLE operation in the background
         self._ble_loop = asyncio.new_event_loop()
@@ -160,8 +170,9 @@ class Cupola(object):
         ts = datetime.datetime.now().timestamp()
         mag = [float(value) for value in data.decode().split(',')]
         if self.calibrated:
-            angle, err = self.compute_heading([mag[0], mag[1], mag[2]])
-            measurement = [ts, mag[0], mag[1], mag[2], angle, err]
+            angle, self.mag_error = self.compute_heading([mag[0], mag[1], mag[2]])
+            self._azimuth = angle + self.calib_offset
+            measurement = [ts, mag[0], mag[1], mag[2], self._azimuth, self.mag_error]
         else:
             measurement = [ts, mag[0], mag[1], mag[2], np.nan, np.nan]
         # print("mag: ", measurement)
@@ -187,12 +198,23 @@ class Cupola(object):
 
     async def turn_left(self):
         await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([3]))
+        self.command = 3
 
     async def turn_right(self):
         await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([4]))
+        self.command = 4
+
+    async def turn_up(self):
+        await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([1]))
+        self.command = 1
+
+    async def turn_down(self):
+        await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([2]))
+        self.command = 2
 
     async def turn_stop(self):
         await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([0]))
+        self.command = 0
 
     @property
     def connected(self):
@@ -207,9 +229,9 @@ class Cupola(object):
         return self._calibrating
 
     @property
-    def heading(self):
-        if self._heading is not None:
-            return self._heading
+    def azimuth(self):
+        if self._azimuth is not None:
+            return self._azimuth
         else:
             raise ValueError('No heading received yet')
 
@@ -234,7 +256,7 @@ class Cupola(object):
         # find rotation speed using a kind of Fourier transform
         amp_max = 0
         T_max = 0
-        for T in np.linspace(T_CALIB/20, T_CALIB, 1000):  # rotation period in s
+        for T in np.linspace(T_CALIB / 20, T_CALIB, 1000):  # rotation period in s
             S = np.sin(2 * np.pi * t / T)
             C = np.cos(2 * np.pi * t / T)
             amp = np.sum(np.square(np.dot(S, data)) + np.square(np.dot(C, data)))
@@ -274,13 +296,13 @@ class Cupola(object):
 
     def compute_heading(self, mag_field: list[float]) -> tuple[float, float]:
         meas = np.array(mag_field)
-        #print(f"compute heading: meas={meas}")
+        # print(f"compute heading: meas={meas}")
 
         # compute distance from measurement to calibrated data to find the nearest calibrated point
         dist = np.linalg.norm(self._calib_data - meas, axis=1)
         nearest = np.argmin(dist)
-        #print(dist)
-        #print(f"compute heading: nearest={nearest}")
+        # print(dist)
+        # print(f"compute heading: nearest={nearest}")
 
         # retrieve the actual angle by interpolation: projection of the measurement on the vector between the
         # calibrated points before and after the nearest point
@@ -290,6 +312,27 @@ class Cupola(object):
         frac_idx %= STEPS
         angle = frac_idx * 360. / STEPS
         err = np.linalg.norm(prev2meas - prev2next * np.dot(prev2meas, prev2next) / np.dot(prev2next, prev2next))
-        #print(f"compute heading: frac_idx={frac_idx} angle={angle} err={err}")
+        # print(f"compute heading: frac_idx={frac_idx} angle={angle} err={err}")
 
         return angle, err
+
+    def load_settings(self):
+        try:
+            with open('settings.dat', 'rb') as file:
+                self._calibrated, self._calib_data, self.calib_offset, self.park_azimuth, self.home_azimuth = pickle.load(
+                    file)
+                print("settings loaded")
+        except FileNotFoundError:
+            print("settings.dat not found. Loading default settings")
+
+    def save_settings(self):
+        with open('settings.dat', 'wb') as file:
+            pickle.dump(
+                [self._calibrated, self._calib_data, self.calib_offset, self.park_azimuth, self.home_azimuth],
+                file)
+            print("settings saved")
+
+    def turn_azimuth(self, azimuth):
+        print("Turn azimuth not yet implemented")
+
+

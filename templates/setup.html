@@ -1,39 +1,75 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Configuration coupole</title>
+    <title>Coupole Astrospace</title>
     <meta http-equiv="refresh" content="5;http://127.0.0.1:5555/setup/v1/dome/0/setup?refresh=true" >
 </head>
 <body>
-<h1 style="color: #5e9ca0;">Configuration</h1>
+<h1 style="color: #5e9ca0;">Coupole Astrospace</h1>
 
-<a href="../../../../setup">Retour à l'acceuil</a><br/>
 
-<h2 style="color: #2e6c80;">Log des mesures</h2>
+<h2 style="color: #2e6c80;">&Eacute;tat</h2>
+<ul>
+    {% if connected %}
+    <li>Connexion : <strong style="color:green">OK</strong>, addresse {{ address }}, <a href="setup?connect=false">D&eacute;connecter</a></li>
+    {% else %}
+    <li>Connexion : <strong style="color:red">NOK</strong>, <a href="setup?connect=true">Connecter</a></li>
+    {% endif %}
 
-<p><img src="plot.png" alt="" /></p>
-<a href="setup?reset=true">Remise &agrave; zero</a><br/>
-<a href="setup?refresh=true">Rafraichir le graphique</a><br/>
-<a href="log_measurements.csv">Telecharger les données</a><br/>
+    {% if calibrated %}
+    <li><a href="calib">Calibration</a> : <strong style="color:green">OK</strong></li>
+    {% elif calibrating %}
+    <li><a href="calib">Calibration</a> : <strong style="color:orange">En cours</strong></li>
+    {% else %}
+    <li><a href="calib">Calibration</a> : <strong style="color:red">NOK</strong></li>
+    {% endif %}
 
-<h2 style="color: #2e6c80;">Statut</h2>
-Connecté: {{ connected }}<br/>
-Addresse: {{ address }}<br/>
-Calibré: {{ calibrated }}<br/>
+    {% if connected and calibrated %}
+    <li>Azimut : {{'%.1f' % azimuth}}&deg;</li>
+    <li>R&eacute;sidus : {{'%.1f' % err}}&micro;T</li>
+    {% endif %}
+
+    {% if connected %}
+    {% if command == 3 %}
+    <li>Commande actuelle : Gauche <strong><a href="setup?stop">STOP !</a></strong></li>
+    {% elif command == 4 %}
+    <li>Commande actuelle : Droite <strong><a href="setup?stop">STOP !</a></strong></li>
+    {% elif command == 1 %}
+    <li>Commande actuelle : Ouverture <strong><a href="setup?stop">STOP !</a></strong></li>
+    {% elif command == 2 %}
+    <li>Commande actuelle : Fermeture <strong><a href="setup?stop">STOP !</a></strong></li>
+    {% else %}
+    <li>Commande actuelle : Aucune</li>
+    {% endif %}
+    {% endif %}
+
+</ul>
+
 {% if connected %}
-<a href="setup?connect=false">Deconnecter</a><br/>
-{% else %}
-<a href="setup?connect=true">Connecter</a><br/>
+<h2 style="color: #2e6c80;">Commandes</h2>
+Rotation:
+<ul>
+    <li><a href="setup?left">&larr; Gauche</a></li>
+    <li><a href="setup?right">&rarr; Droite</a></li>
+    {% if calibrated %}
+    <li><a href="setup?parking">Position de parking</a></li>
+    <li><a href="setup?home">Position d&rsquo;utilisation du cimier</a></li>
+    <li><form action="setup" method="get"><label for="azimuth">Tourner vers azimut</label> <input type="number" id="azimuth" name="azimuth" min="0" max="359" step="1" value="180" size="3">&deg; <button type="submit">GO</button></form></li>
+    {% endif %}
+</ul>
+Cimier:
+<ul>
+    <li><a href="setup?up">&uarr; Ouverture</a></li>
+    <li><a href="setup?down">&darr; Fermeture</a></li>
+</ul>
+
+
 {% endif %}
 
 
-<h2 style="color: #2e6c80;">Calibration</h2>
-<p>Instructions ... TODO</p>
-Calibré: {{ calibrated }}<br/>
-Calibration en cours: {{ calibrating }}<br/>
-<a href="setup?calib=true">Lancer la calibration</a><br/>
-<p><img src="plot_calib.png" alt="" /></p>
-<a href="calib_measurements.csv">Telecharger les données</a><br/>
-<a href="setup?test">Test</a><br/>
+<h2 style="color: #2e6c80;">Historique</h2>
+<p><img src="plot.png" alt="Pas de donn&eacute;es &agrave; afficher" /></p>
+<a href="setup?reset=true">Remise &agrave; z&eacute;ro</a><br/>
+<a href="log_measurements.csv">T&eacute;l&eacute;charger les donn&eacute;es</a><br/>
 </body>
 </html>
