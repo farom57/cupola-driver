@@ -1,41 +1,51 @@
 import asyncio
 import pickle
-from typing import Tuple
 
 from bleak import BleakScanner, BleakClient
-import struct
+
 from threading import Thread
 import datetime
 import csv
 import numpy as np
 import math
 
-from numpy import ndarray
-
-T_CALIB = 600  # 10 minutes, it must be sufficient for several turns of the dome
-STEPS = 72  # number of steps for the calibration (1 every 5°)
-
 
 class Cupola(object):
 
     def __init__(self, address=None):
 
-        self.mag_error = None
-        self.command = 0
+        self.CALIB_DURATION = 60 * 6  # 6 minutes, it must be sufficient for several turns of the dome
+        self.STEPS = 72  # number of steps for the calibration (1 every 5°)
+
+        # Current orientation
         self._azimuth = None
-        self._flask_loop = None
+        self._mag_error = None
+
+        # RF command:
+        # 0 stopped
+        # 1 Open
+        # 2 Close
+        # 3 Left
+        # 4 Right
+        self._command = 0
+
+        self.log_measurements = []  # Size Nx6: timestamp, meas_x, meas_y, meas_z, heading, err
+        self.calib_measurements = []  # Size Nx4: dt, meas_x, meas_y, meas_z
+        self._tstart_calib = 0  # date of calibration starting
+        self._calibrating = False
+        self._target_azimuth = None
+
+        # BLE
         self._connected = False
         self._address = address  # normally 5B:AB:B6:09:F8:CD but it may change at each new firmware
         self._client = None
+
+        # BLE characteristics UUID
         self._STATE_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503121"
         self._HEAD_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d050313a"
         self._MAG_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503131"
         self._ALIVE_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503151"
         self._RFCMD_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503171"
-        self.log_measurements = []  # Size Nx6: timestamp, meas_x, meas_y, meas_z, heading, err
-        self.calib_measurements = []  # Size Nx4: dt, meas_x, meas_y, meas_z
-        self._tstart_calib = 0  # date of calibration starting
-        self._calibrating = False
 
         # saved data, first set defaults
         self._calibrated = False
@@ -45,8 +55,9 @@ class Cupola(object):
         self.home_azimuth = None
         self.load_settings()
 
-        # Start a thread to perform BLE operation in the background
-        self._ble_loop = asyncio.new_event_loop()
+        # Async stuff
+        self._flask_loop = None
+        self._ble_loop = asyncio.new_event_loop()  # Start a thread to perform BLE operation in the background
         asyncio.set_event_loop(self._ble_loop)
 
         def bleak_thread(loop):
@@ -119,7 +130,7 @@ class Cupola(object):
         disconnect_command_task = asyncio.create_task(self._disconnect_command.wait())
 
         # write to the alive char every 5s. Monitor for disconnect tast or event
-        while (True):
+        while True:
             read_alive_task = asyncio.create_task(self._client.read_gatt_char(self._ALIVE_UUID))
             done, pending = await asyncio.wait([disconnected_event_task, disconnect_command_task, read_alive_task],
                                                return_when=asyncio.FIRST_COMPLETED, timeout=5.)
@@ -170,8 +181,8 @@ class Cupola(object):
         ts = datetime.datetime.now().timestamp()
         mag = [float(value) for value in data.decode().split(',')]
         if self.calibrated:
-            angle, self.mag_error = self.compute_heading([mag[0], mag[1], mag[2]])
-            self._azimuth = angle + self.calib_offset
+            angle, self._mag_error = self.compute_heading([mag[0], mag[1], mag[2]])
+            self._azimuth = (angle + self.calib_offset)%360
             measurement = [ts, mag[0], mag[1], mag[2], self._azimuth, self.mag_error]
         else:
             measurement = [ts, mag[0], mag[1], mag[2], np.nan, np.nan]
@@ -179,11 +190,11 @@ class Cupola(object):
         self.log_measurements.append(measurement)
 
         dt = ts - self._tstart_calib
-        if 0 < dt < T_CALIB:
-            print("calib ", dt / T_CALIB * 100., "%", measurement)
+        if 0 < dt < self.CALIB_DURATION:
+            print("calib ", dt / self.CALIB_DURATION * 100., "%", measurement)
             measurement_calib = [dt, mag[0], mag[1], mag[2]]
             self.calib_measurements.append(measurement_calib)
-        if dt > T_CALIB and self._calibrating:
+        if dt > self.CALIB_DURATION and self._calibrating:
             print("Stopping")
             await self.turn_stop()
             print("Stopped")
@@ -191,30 +202,41 @@ class Cupola(object):
             self._calibrating = False
 
     async def start_calib(self):
-        self.calib_measurements = []
+        self.reset_calib()
         self._tstart_calib = datetime.datetime.now().timestamp() + 5  # start calibration in 5s to let the cupola accelerate
         self._calibrating = True
-        asyncio.run_coroutine_threadsafe(self.turn_right(), self._ble_loop)  # start rotation to the right
+        await self.turn_right()  # start rotation to the right
+
+    async def stop_calib(self):
+        self._tstart_calib = 0
+
+    async def set_command(self, cmd: int):
+        if 0 <= cmd <= 4:
+            # await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([cmd]))
+            asyncio.run_coroutine_threadsafe(self._client.write_gatt_char(self._RFCMD_UUID, bytearray([cmd])), self._ble_loop)
+            self._command = cmd
+        else:
+            raise ValueError(f"invalid command: {cmd}. It must between 0 and 4")
+
+    def reset_calib(self):
+        self.calib_measurements = []
+        self._calibrated = False
+
 
     async def turn_left(self):
-        await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([3]))
-        self.command = 3
+        await self.set_command(3)
 
     async def turn_right(self):
-        await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([4]))
-        self.command = 4
+        await self.set_command(4)
 
     async def turn_up(self):
-        await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([1]))
-        self.command = 1
+        await self.set_command(1)
 
     async def turn_down(self):
-        await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([2]))
-        self.command = 2
+        await self.set_command(2)
 
     async def turn_stop(self):
-        await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([0]))
-        self.command = 0
+        await self.set_command(0)
 
     @property
     def connected(self):
@@ -230,10 +252,22 @@ class Cupola(object):
 
     @property
     def azimuth(self):
-        if self._azimuth is not None:
+        if self._azimuth is not None and self._connected:
             return self._azimuth
         else:
-            raise ValueError('No heading received yet')
+            return None
+
+    @property
+    def mag_error(self):
+        return self._mag_error
+
+    @property
+    def command(self):
+        return self._command
+
+    @property
+    def calib_progress(self):
+        return datetime.datetime.now().timestamp() - self._tstart_calib
 
     def test(self):
         with open('calib_measurements.csv') as file:
@@ -243,6 +277,15 @@ class Cupola(object):
                 self.calib_measurements.append(row)
 
             self.compute_calibration()
+
+    def sync_azimuth(self, azimuth):
+        if self.azimuth is None:
+            raise ValueError("Azimuth is not defined")
+
+        if 0 <= azimuth < 360:
+            self.calib_offset = self.calib_offset + azimuth - self.azimuth
+        else:
+            raise ValueError("Invalid azimuth value")
 
     def compute_calibration(self):
         data = np.array(self.calib_measurements)
@@ -256,7 +299,7 @@ class Cupola(object):
         # find rotation speed using a kind of Fourier transform
         amp_max = 0
         T_max = 0
-        for T in np.linspace(T_CALIB / 20, T_CALIB, 1000):  # rotation period in s
+        for T in np.linspace(t[-1]/20,t[-1], 5000):  # rotation period in s, allows between 1 and 20 turns
             S = np.sin(2 * np.pi * t / T)
             C = np.cos(2 * np.pi * t / T)
             amp = np.sum(np.square(np.dot(S, data)) + np.square(np.dot(C, data)))
@@ -269,12 +312,11 @@ class Cupola(object):
         data = data + mean  # restore offset
 
         # all measurements within the same step are averaged
-        calib_data = np.zeros((STEPS, 3))
-        nb_calib_data = np.zeros((STEPS, 1))
-        steps = np.linspace(0, 360, STEPS, endpoint=False)
+        calib_data = np.zeros((self.STEPS, 3))
+        nb_calib_data = np.zeros((self.STEPS, 1))
         for i in range(n):
             meas = data[i, :]
-            step = math.floor(((t[i] / T_max) % 1.) * STEPS)
+            step = math.floor(((t[i] / T_max) % 1.) * self.STEPS)
             calib_data[step, :] += meas
             nb_calib_data[step] += 1
 
@@ -306,11 +348,11 @@ class Cupola(object):
 
         # retrieve the actual angle by interpolation: projection of the measurement on the vector between the
         # calibrated points before and after the nearest point
-        prev2next = self._calib_data[(nearest + 1) % STEPS, :] - self._calib_data[(nearest - 1) % STEPS, :]
-        prev2meas = meas - self._calib_data[(nearest - 1) % STEPS, :]
+        prev2next = self._calib_data[(nearest + 1) % self.STEPS, :] - self._calib_data[(nearest - 1) % self.STEPS, :]
+        prev2meas = meas - self._calib_data[(nearest - 1) % self.STEPS, :]
         frac_idx = (nearest - 1) + np.dot(prev2meas, prev2meas) / np.dot(prev2next, prev2next) * 2
-        frac_idx %= STEPS
-        angle = frac_idx * 360. / STEPS
+        frac_idx %= self.STEPS
+        angle = frac_idx * 360. / self.STEPS
         err = np.linalg.norm(prev2meas - prev2next * np.dot(prev2meas, prev2next) / np.dot(prev2next, prev2next))
         # print(f"compute heading: frac_idx={frac_idx} angle={angle} err={err}")
 
@@ -333,6 +375,13 @@ class Cupola(object):
             print("settings saved")
 
     def turn_azimuth(self, azimuth):
-        print("Turn azimuth not yet implemented")
+        azimuth %= 360
+        self._target_azimuth = azimuth
 
+    async def stop(self):
+        self._target_azimuth = None
+        await self.turn_stop()
 
+    @property
+    def address(self):
+        return self._address

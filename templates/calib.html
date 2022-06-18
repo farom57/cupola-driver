@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Coupole Astrospace : Calibration</title>
+    <meta http-equiv="refresh" content="5;http://127.0.0.1:5555/setup/v1/dome/0/calib" >
+</head>
+<body>
+<h1 style="color: #5e9ca0;">Calibration</h1>
+
+<a href="setup">Retour &agrave; la page principale</a>
+
+<h2 style="color: #2e6c80;">Instructions</h2>
+
+Le calcul de l'orientation de la coupole repose sur la mesure du champ magn&eacute;tique par le module install&eacute;
+sur la coupole comme pour une boussole. Une calibration du syst&egrave;me est n&eacute;cessaire afin de tenir compte des
+diff&eacute;rentes perturbations et de l'orientation dans lequel est mont&eacute; le module. Cette calibration est a
+effectuer si le module est d&eacute;plac&eacute;, en cas de remplacement des piles ou en cas d'&eacute;volution des
+perturbations magn&eacute;tiques. La rotation des piles dans leur support peut causer des erreurs de plusieurs dizaines
+de degr&eacute;s.
+
+<h2 style="color: #2e6c80;">&Eacute;tape 1 - Mesure du champ magn&eacute;tique</h2>
+La coupole va effectuer une rotation continue durant 6 minutes (environ 3 tours). <br/>
+{% if calibrated %}
+<a href="calib?reset">Effacer les donn&eacute;es</a> <a href="calib_measurements.csv">T&eacute;l&eacute;charger les mesures</a><br/>
+<img src="plot_calib.png" alt="Pas de donn&eacute;es &agrave; afficher" /><br/>
+{% elif connected %}
+    {% if calibrating %}
+<strong style="color:orange">En cours </strong>{{'%.0f' % progress}}/{{'%.0f' % total}} <a href="calib?stop">Arreter</a><br/>
+<img src="plot_calib.png" alt="Pas de donn&eacute;es &agrave; afficher" /><br/>
+    {% else %}
+<a href="calib?start">Lancer</a><br/>
+    {% endif %}
+{% else %}
+<strong style="color:red">Non connect&eacute;</strong><br/>
+{% endif %}
+
+<h2 style="color: #2e6c80;">&Eacute;tape 2 - D&eacutefinition de l'azimut de r&eacutef&eacuterence</h2>
+Tourner la coupole vers un azimut connu  et entrer la valeur  (0&deg;=nord, 90&deg;=est, 180&deg;=sud, 27&deg;=ouest)<br/>
+<form action="calib" method="get">
+    <label for="azimuth">Azimut actuel : </label>
+    <input type="number" id="azimuth" name="azimuth" min="0" max="359" step="1" value="180" size="3">&deg; <button type="submit">Synchroniser</button>
+</form>
+{% if offset is not none %}
+Offset actuel = {{'%.0f' % offset}}&deg;
+{% endif %}
+
+<h2 style="color: #2e6c80;">&Eacute;tape 3 - D&eacute;finition des position de parking et de contact cimier</h2>
+Tourner la coupole vers les positions de parking et de contact cimier.<br/>
+<ul>
+    <li>Parking : <a href="calib?parking">Enregistrer la position actuelle </a>{% if parking is not none %}<strong style="color:green">OK</strong> azimut = {{'%.0f' % parking}}&deg;{% endif %}</li>
+    <li>Cimier : <a href="calib?home">Enregistrer la position actuelle </a>{% if home is not none %}<strong style="color:green">OK</strong> azimut = {{'%.0f' % home}}&deg;{% endif %}</li>
+</ul>
+
+<h2 style="color: #2e6c80;">&Eacute;tape 4 - Sauvegarder</h2>
+<a href="calib?save">Sauvegarder</a><br/><br/>
+
+<a href="setup">Retour &agrave; la page principale</a>
+
+</body>
+</html>

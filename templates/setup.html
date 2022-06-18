@@ -25,8 +25,20 @@
     {% endif %}
 
     {% if connected and calibrated %}
-    <li>Azimut : {{'%.1f' % azimuth}}&deg;</li>
-    <li>R&eacute;sidus : {{'%.1f' % err}}&micro;T</li>
+    <li>Azimut :
+        {% if azimuth is not none %}
+        {{'%.1f' % azimuth}}&deg;
+        {% else %}
+        N/A
+        {% endif %}
+    </li>
+    <li>R&eacute;sidus :
+        {% if err is not none %}
+        {{'%.1f' % err}}&micro;T
+        {% else %}
+        N/A
+        {% endif %}
+    </li>
     {% endif %}
 
     {% if connected %}
@@ -49,6 +61,7 @@
 <h2 style="color: #2e6c80;">Commandes</h2>
 Rotation:
 <ul>
+    <li><a href="setup?stop">STOP</a></li>
     <li><a href="setup?left">&larr; Gauche</a></li>
     <li><a href="setup?right">&rarr; Droite</a></li>
     {% if calibrated %}

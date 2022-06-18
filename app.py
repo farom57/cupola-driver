@@ -1,23 +1,20 @@
-from flask import Flask, request, Response, url_for, render_template, redirect, abort
-from werkzeug.datastructures import MultiDict
-from cupola import Cupola
+import io
+
+from flask import Flask, request, Response, render_template, redirect, abort
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
-import io
-import random
+from werkzeug.datastructures import MultiDict
+
+from cupola import Cupola
 
 app = Flask(__name__)
 server_transaction_id = 0
 dome = Cupola()
 
 
-
-
 @app.route('/')
 def index():
     return redirect('setup')
-
-
 
 
 def process_request(dct: MultiDict):
@@ -194,15 +191,15 @@ def atpark():
 def azimuth():
     req, client_transaction_id, client_id = process_request(request.args)
 
-    try:
-        heading = dome.heading
-        ret = {"Value": heading, "ClientTransactionID": client_transaction_id,
+    if dome.azimuth is not None:
+
+        ret = {"Value": dome.azimuth, "ClientTransactionID": client_transaction_id,
                "ServerTransactionID": server_transaction_id,
                "ErrorNumber": 0, "ErrorMessage": ""}
-    except ValueError as err:
+    else:
         ret = {"ClientTransactionID": client_transaction_id,
                "ServerTransactionID": server_transaction_id,
-               "ErrorNumber": 0x401, "ErrorMessage": str(err)}  # 0x401 = Invalid value error
+               "ErrorNumber": 0x401, "ErrorMessage": "Azimuth not defined"}  # 0x401 = Invalid value error
 
     return ret
 
@@ -385,6 +382,7 @@ def plot_png():
     FigureCanvas(fig).print_png(output)
     return Response(output.getvalue(), mimetype='image/png')
 
+
 @app.route('/setup/v1/dome/0/plot_calib.png')
 def plot_calib_png():
     if len(dome.calib_measurements) == 0:
@@ -395,12 +393,12 @@ def plot_calib_png():
     FigureCanvas(fig).print_png(output)
     return Response(output.getvalue(), mimetype='image/png')
 
-def create_figure(data):
 
+def create_figure(data):
     fig = Figure()
 
     if len(data[-1]) == 6:
-        ax1 = fig.add_subplot(3,1,1)
+        ax1 = fig.add_subplot(3, 1, 1)
         ax2 = fig.add_subplot(3, 1, 2)
         ax3 = fig.add_subplot(3, 1, 3)
         time = [item[0] for item in data]
@@ -411,10 +409,10 @@ def create_figure(data):
         err = [item[5] for item in data]
         ax1.plot(time, x, time, y, time, z)
         ax2.plot(time, angle)
-        ax2.set_ylim([0,360])
+        ax2.set_ylim([0, 360])
         ax3.plot(time, err)
     else:
-        ax1 = fig.add_subplot(1,1,1)
+        ax1 = fig.add_subplot(1, 1, 1)
         time = [item[0] for item in data]
         x = [item[1] for item in data]
         y = [item[2] for item in data]
@@ -428,23 +426,25 @@ def create_figure(data):
 def log_measurements():
     file = "timestamp\tmag X\tmag Y\tmag Z\n"
     for item in dome.log_measurements:
-        file+=str(item[0])+'\t'+str(item[1])+'\t'+str(item[2])+'\t'+str(item[3])+'\n'
+        file += str(item[0]) + '\t' + str(item[1]) + '\t' + str(item[2]) + '\t' + str(item[3]) + '\n'
     return Response(file, mimetype='text/csv')
+
 
 @app.route('/setup/v1/dome/0/calib_measurements.csv')
 def calib_measurements():
     file = "timestamp\tmag X\tmag Y\tmag Z\n"
     for item in dome.calib_measurements:
-        file+=str(item[0])+'\t'+str(item[1])+'\t'+str(item[2])+'\t'+str(item[3])+'\n'
+        file += str(item[0]) + '\t' + str(item[1]) + '\t' + str(item[2]) + '\t' + str(item[3]) + '\n'
     return Response(file, mimetype='text/csv')
+
 
 @app.route('/setup')
 def home():
     return render_template('home.html')
 
+
 @app.route('/setup/v1/dome/0/setup')
 async def setup():
-
     arg = request.args.get('connect')
     if arg is not None:
         if arg.lower() == 'true':
@@ -488,24 +488,47 @@ async def setup():
     if arg is not None and arg.lower() == 'true':
         dome.log_measurements = []
 
-    return render_template('setup.html', connected=dome.connected, address=dome._address, calibrating=dome.calibrating, calibrated=dome.calibrated, command=dome.command, azimuth=dome._azimuth, err=dome.mag_error)
+    return render_template('setup.html', connected=dome.connected, address=dome.address, calibrating=dome.calibrating, calibrated=dome.calibrated, command=dome.command,
+                           azimuth=dome.azimuth, err=dome.mag_error)
+
 
 @app.route('/setup/v1/dome/0/calib')
 async def calib():
-    arg = request.args.get('calib')
+    arg = request.args.get('start')
     if arg is not None:
         await dome.start_calib()
 
-    arg = request.args.get('test')
+    arg = request.args.get('reset')
     if arg is not None:
-        dome.test()
+        dome.reset_calib()
+
+    arg = request.args.get('stop')
+    if arg is not None:
+        await dome.stop_calib()
+
+    arg = request.args.get('azimuth')
+    if arg is not None:
+        dome.sync_azimuth(float(arg))
+
+    arg = request.args.get('parking')
+    if arg is not None:
+        dome.park_azimuth = dome.azimuth
+
+    arg = request.args.get('home')
+    if arg is not None:
+        dome.home_azimuth = dome.azimuth
 
     arg = request.args.get('save')
     if arg is not None:
         dome.save_settings()
 
-    return render_template('setup.html', connected=dome.connected, address=dome._address, calibrating=dome.calibrating,
-                           calibrated=dome.calibrated)
+    arg = request.args.get('test')
+    if arg is not None:
+        dome.test()
+
+    return render_template('calib.html', connected=dome.connected, calibrating=dome.calibrating, calibrated=dome.calibrated, progress=dome.calib_progress,
+                           total=dome.CALIB_DURATION, offset=dome.calib_offset, parking=dome.park_azimuth, home=dome.home_azimuth)
+
 
 if __name__ == "__main__":
-    app.run(debug = True, port = 5555)
+    app.run(debug=True, port=5555)
