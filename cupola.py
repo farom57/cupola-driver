@@ -99,11 +99,13 @@ class Cupola(object):
             print("Error: Cupola not found")
             return False
 
+        self._flask_loop = asyncio.get_event_loop()
+
         # start the connection task in the other Thread
         asyncio.run_coroutine_threadsafe(self.maintain_connection(), self._ble_loop)
 
         # waiting for the other thread to signal the connection
-        self._flask_loop = asyncio.get_event_loop()
+
         print('[waiting connection]')
         await self._connected_event.wait()
         self._connected_event.clear()
