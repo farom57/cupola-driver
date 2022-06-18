@@ -336,7 +336,7 @@ class Cupola(object):
         data = np.c_[t, data, angle, err]
         self.calib_measurements = list(data)
 
-    def compute_heading(self, mag_field: list[float]) -> tuple[float, float]:
+    def compute_heading(self, mag_field: list[float]):
         meas = np.array(mag_field)
         # print(f"compute heading: meas={meas}")
 
