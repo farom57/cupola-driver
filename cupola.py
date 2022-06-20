@@ -9,6 +9,19 @@ import csv
 import numpy as np
 import math
 
+# thread-safe event
+class EventTs(asyncio.Event):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self._loop is None:
+            self._loop = asyncio.get_event_loop()
+
+    def set(self):
+        self._loop.call_soon_threadsafe(super().set)
+
+    def clear(self):
+        self._loop.call_soon_threadsafe(super().clear)
+
 
 class Cupola(object):
 
@@ -68,9 +81,9 @@ class Cupola(object):
         self._thread.start()
 
         # Events to communicate between background and foreground tasks
-        self._disconnected_event = asyncio.Event()
-        self._disconnect_command = asyncio.Event()
-        self._connected_event = asyncio.Event()
+        self._disconnected_event = EventTs()
+        self._disconnect_command = EventTs()
+        self._connected_event = EventTs()
 
     def __del__(self):
         print('Stopping')
@@ -100,6 +113,7 @@ class Cupola(object):
             return False
 
         self._flask_loop = asyncio.get_event_loop()
+        self._connected_event = EventTs()
 
         # start the connection task in the other Thread
         asyncio.run_coroutine_threadsafe(self.maintain_connection(), self._ble_loop)
@@ -117,7 +131,7 @@ class Cupola(object):
         self._connected = await self._client.connect()
         print('...')
         # signal to Cupola.connect() that it can terminate.
-        self._flask_loop.call_soon_threadsafe(self._connected_event.set)
+        self._connected_event.set()
 
         if not self._connected:
             print('Failed to establish the connection')
@@ -176,7 +190,7 @@ class Cupola(object):
             print('already disconnected')
             return True
         else:
-            self._ble_loop.call_soon_threadsafe(self._disconnect_command.set)
+            self._disconnect_command.set()
             return True
 
     async def notification_handler(self, sender, data):
@@ -184,7 +198,7 @@ class Cupola(object):
         mag = [float(value) for value in data.decode().split(',')]
         if self.calibrated:
             angle, self._mag_error = self.compute_heading([mag[0], mag[1], mag[2]])
-            self._azimuth = (angle + self.calib_offset)%360
+            self._azimuth = (angle + self.calib_offset) % 360
             measurement = [ts, mag[0], mag[1], mag[2], self._azimuth, self.mag_error]
         else:
             measurement = [ts, mag[0], mag[1], mag[2], np.nan, np.nan]
@@ -215,7 +229,8 @@ class Cupola(object):
     async def set_command(self, cmd: int):
         if 0 <= cmd <= 4:
             # await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([cmd]))
-            asyncio.run_coroutine_threadsafe(self._client.write_gatt_char(self._RFCMD_UUID, bytearray([cmd])), self._ble_loop)
+            asyncio.run_coroutine_threadsafe(self._client.write_gatt_char(self._RFCMD_UUID, bytearray([cmd])),
+                                             self._ble_loop)
             self._command = cmd
         else:
             raise ValueError(f"invalid command: {cmd}. It must between 0 and 4")
@@ -223,7 +238,6 @@ class Cupola(object):
     def reset_calib(self):
         self.calib_measurements = []
         self._calibrated = False
-
 
     async def turn_left(self):
         await self.set_command(3)
@@ -301,7 +315,7 @@ class Cupola(object):
         # find rotation speed using a kind of Fourier transform
         amp_max = 0
         T_max = 0
-        for T in np.linspace(t[-1]/20,t[-1], 5000):  # rotation period in s, allows between 1 and 20 turns
+        for T in np.linspace(t[-1] / 20, t[-1], 5000):  # rotation period in s, allows between 1 and 20 turns
             S = np.sin(2 * np.pi * t / T)
             C = np.cos(2 * np.pi * t / T)
             amp = np.sum(np.square(np.dot(S, data)) + np.square(np.dot(C, data)))
