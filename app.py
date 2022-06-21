@@ -301,10 +301,15 @@ def slewing():
 
 
 @app.route('/api/v1/dome/0/abortslew', methods=['PUT'])
-def abortslew():
+async def abortslew():
     req, client_transaction_id, client_id = process_request(request.form)
-    ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
-           "ErrorNumber": 0x40C, "ErrorMessage": "Not implemented"}
+
+    if await dome.stop():
+        ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+               "ErrorNumber": 0, "ErrorMessage": ""}
+    else:
+        ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+               "ErrorNumber": 0x40C, "ErrorMessage": "Not implemented"}
     return ret
 
 
@@ -488,7 +493,8 @@ async def setup():
     if arg is not None and arg.lower() == 'true':
         dome.log_measurements = []
 
-    return render_template('setup.html', connected=dome.connected, address=dome.address, calibrating=dome.calibrating, calibrated=dome.calibrated, command=dome.command,
+    return render_template('setup.html', connected=dome.connected, address=dome.address, calibrating=dome.calibrating,
+                           calibrated=dome.calibrated, command=dome.command,
                            azimuth=dome.azimuth, err=dome.mag_error)
 
 
@@ -526,8 +532,10 @@ async def calib():
     if arg is not None:
         dome.test()
 
-    return render_template('calib.html', connected=dome.connected, calibrating=dome.calibrating, calibrated=dome.calibrated, progress=dome.calib_progress,
-                           total=dome.CALIB_DURATION, offset=dome.calib_offset, parking=dome.park_azimuth, home=dome.home_azimuth)
+    return render_template('calib.html', connected=dome.connected, calibrating=dome.calibrating,
+                           calibrated=dome.calibrated, progress=dome.calib_progress,
+                           total=dome.CALIB_DURATION, offset=dome.calib_offset, parking=dome.park_azimuth,
+                           home=dome.home_azimuth)
 
 
 if __name__ == "__main__":

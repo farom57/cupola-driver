@@ -79,6 +79,7 @@ class Cupola(object):
 
         self._thread = Thread(target=bleak_thread, args=(self._ble_loop,))
         self._thread.start()
+        self._cmd_lock = None # lock to ensure that there is no concurrent operation on the rfcmd characteristic
 
         # Events to communicate between background and foreground tasks
         self._disconnected_event = EventTs()
@@ -128,8 +129,13 @@ class Cupola(object):
 
     async def maintain_connection(self):
         print('[connecting]')
-        self._connected = await self._client.connect()
-        print('...')
+        try:
+            self._connected = await asyncio.wait_for(self._client.connect(),timeout=30.)
+            print('...')
+        except asyncio.TimeoutError:
+            print('Timeout')
+            self._connected = False
+
         # signal to Cupola.connect() that it can terminate.
         self._connected_event.set()
 
@@ -140,6 +146,8 @@ class Cupola(object):
         print('[connected]')
         await self._client.start_notify(self._MAG_UUID, self.notification_handler)
         print('notification enabled')
+
+        self._cmd_lock=asyncio.Lock()
 
         # wait until the disconnection either from Cupola.disconnect() or from the device (disconnected_callback())
         disconnected_event_task = asyncio.create_task(self._disconnected_event.wait())
@@ -229,9 +237,28 @@ class Cupola(object):
     async def set_command(self, cmd: int):
         if 0 <= cmd <= 4:
             # await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([cmd]))
-            asyncio.run_coroutine_threadsafe(self._client.write_gatt_char(self._RFCMD_UUID, bytearray([cmd])),
-                                             self._ble_loop)
-            self._command = cmd
+
+            async def set_command_ble(cmd):
+                success=False
+                async with self._cmd_lock:
+                    print("set_command_ble: ",cmd)
+                    error=0
+
+                    while not success and error<5:
+                        await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([cmd]),True)
+                        data = await self._client.read_gatt_char(self._RFCMD_UUID)
+                        if data[0] == cmd:
+                            print("ok")
+                            success = True
+                        else:
+                            print("readback: ",data[0], "--> retry")
+                            error +=1
+                return success
+
+            success = asyncio.run_coroutine_threadsafe(set_command_ble(cmd), self._ble_loop)
+            if success:
+                self._command = cmd
+            return success
         else:
             raise ValueError(f"invalid command: {cmd}. It must between 0 and 4")
 
@@ -240,19 +267,19 @@ class Cupola(object):
         self._calibrated = False
 
     async def turn_left(self):
-        await self.set_command(3)
+        return await self.set_command(3)
 
     async def turn_right(self):
-        await self.set_command(4)
+        return await self.set_command(4)
 
     async def turn_up(self):
-        await self.set_command(1)
+        return await self.set_command(1)
 
     async def turn_down(self):
-        await self.set_command(2)
+        return await self.set_command(2)
 
     async def turn_stop(self):
-        await self.set_command(0)
+        return await self.set_command(0)
 
     @property
     def connected(self):
@@ -396,7 +423,7 @@ class Cupola(object):
 
     async def stop(self):
         self._target_azimuth = None
-        await self.turn_stop()
+        return await self.turn_stop()
 
     @property
     def address(self):
