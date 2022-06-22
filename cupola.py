@@ -9,6 +9,7 @@ import csv
 import numpy as np
 import math
 
+
 # thread-safe event
 class EventTs(asyncio.Event):
     def __init__(self, *args, **kwargs):
@@ -79,7 +80,7 @@ class Cupola(object):
 
         self._thread = Thread(target=bleak_thread, args=(self._ble_loop,))
         self._thread.start()
-        self._cmd_lock = None # lock to ensure that there is no concurrent operation on the rfcmd characteristic
+        self._cmd_lock = None  # lock to ensure that there is no concurrent operation on the rfcmd characteristic
 
         # Events to communicate between background and foreground tasks
         self._disconnected_event = EventTs()
@@ -130,7 +131,7 @@ class Cupola(object):
     async def maintain_connection(self):
         print('[connecting]')
         try:
-            self._connected = await asyncio.wait_for(self._client.connect(),timeout=30.)
+            self._connected = await asyncio.wait_for(self._client.connect(), timeout=30.)
             print('...')
         except asyncio.TimeoutError:
             print('Timeout')
@@ -147,7 +148,7 @@ class Cupola(object):
         await self._client.start_notify(self._MAG_UUID, self.notification_handler)
         print('notification enabled')
 
-        self._cmd_lock=asyncio.Lock()
+        self._cmd_lock = asyncio.Lock()
 
         # wait until the disconnection either from Cupola.disconnect() or from the device (disconnected_callback())
         disconnected_event_task = asyncio.create_task(self._disconnected_event.wait())
@@ -225,6 +226,16 @@ class Cupola(object):
             self.compute_calibration()
             self._calibrating = False
 
+        if self._azimuth is not None and self._target_azimuth is not None:
+            delta = self._target_azimuth - self._azimuth
+            delta = ((delta + 180) % 360) - 180
+            if delta > 0 and self._command == 3:
+                await self.turn_stop()
+                self._target_azimuth = None
+            if delta < 0 and self._command == 4:
+                await self.turn_stop()
+                self._target_azimuth = None
+
     async def start_calib(self):
         self.reset_calib()
         self._tstart_calib = datetime.datetime.now().timestamp() + 5  # start calibration in 5s to let the cupola accelerate
@@ -239,20 +250,20 @@ class Cupola(object):
             # await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([cmd]))
 
             async def set_command_ble(cmd):
-                success=False
+                success = False
                 async with self._cmd_lock:
-                    print("set_command_ble: ",cmd)
-                    error=0
+                    print("set_command_ble: ", cmd)
+                    error = 0
 
-                    while not success and error<5:
-                        await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([cmd]),True)
+                    while not success and error < 5:
+                        await self._client.write_gatt_char(self._RFCMD_UUID, bytearray([cmd]), True)
                         data = await self._client.read_gatt_char(self._RFCMD_UUID)
                         if data[0] == cmd:
                             print("ok")
                             success = True
                         else:
-                            print("readback: ",data[0], "--> retry")
-                            error +=1
+                            print("readback: ", data[0], "--> retry")
+                            error += 1
                 return success
 
             success = asyncio.run_coroutine_threadsafe(set_command_ble(cmd), self._ble_loop)
@@ -417,9 +428,17 @@ class Cupola(object):
                 file)
             print("settings saved")
 
-    def turn_azimuth(self, azimuth):
+    async def turn_azimuth(self, azimuth):
         azimuth %= 360
         self._target_azimuth = azimuth
+
+        if self._azimuth is not None:
+            delta = self._target_azimuth - self._azimuth
+            delta = ((delta + 180) % 360) - 180
+            if delta > 0:
+                await self.turn_right()
+            if delta < 0:
+                await self.turn_left()
 
     async def stop(self):
         self._target_azimuth = None

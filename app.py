@@ -231,7 +231,7 @@ def cansetaltitude():
 @app.route('/api/v1/dome/0/cansetazimuth', methods=['GET'])
 def cansatazimuth():
     req, client_transaction_id, client_id = process_request(request.args)
-    ret = {"Value": False, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+    ret = {"Value": True, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
            "ErrorNumber": 0, "ErrorMessage": ""}
     return ret
 
@@ -295,7 +295,8 @@ def slaved_put():
 @app.route('/api/v1/dome/0/slewing', methods=['GET'])
 def slewing():
     req, client_transaction_id, client_id = process_request(request.args)
-    ret = {"Value": False, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
+    moving = (dome._command != 0)
+    ret = {"Value": moving, "ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
            "ErrorNumber": 0, "ErrorMessage": ""}
     return ret
 
@@ -362,10 +363,11 @@ def slewtoaltitude():
 
 
 @app.route('/api/v1/dome/0/slewtoazimuth', methods=['PUT'])
-def slewtoazimuth():
+async def slewtoazimuth():
     req, client_transaction_id, client_id = process_request(request.form)
+    await dome.turn_azimuth(float(req.get('azimuth')))
     ret = {"ClientTransactionID": client_transaction_id, "ServerTransactionID": server_transaction_id,
-           "ErrorNumber": 0x400, "ErrorMessage": "Not implemented"}
+           "ErrorNumber": 0, "ErrorMessage": ""}
     return ret
 
 
