@@ -57,7 +57,8 @@ class Cupola(object):
         # BLE characteristics UUID
         self._STATE_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503121"
         self._HEAD_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d050313a"
-        self._MAG_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503131"
+        #self._MAG_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503131" # for raw mag measurements
+        self._MAG_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503135" # for filtered mag measurements
         self._ALIVE_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503151"
         self._RFCMD_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503171"
 
