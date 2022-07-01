@@ -39,7 +39,16 @@
         N/A
         {% endif %}
     </li>
+    <li>Cible :
+        {% if target is not none %}
+        {{'%.1f' % target}}&deg;
+        {% else %}
+        N/A
+        {% endif %}
+    </li>
     {% endif %}
+
+
 
     {% if connected %}
     {% if command == 3 %}
@@ -65,7 +74,7 @@ Rotation:
     <li><a href="setup?left">&larr; Gauche</a></li>
     <li><a href="setup?right">&rarr; Droite</a></li>
     {% if calibrated %}
-    <li><a href="setup?parking">Position de parking</a></li>
+    <li><a href="setup?park">Position de parking</a></li>
     <li><a href="setup?home">Position d&rsquo;utilisation du cimier</a></li>
     <li><form action="setup" method="get"><label for="azimuth">Tourner vers azimut</label> <input type="number" id="azimuth" name="azimuth" min="0" max="359" step="1" value="180" size="3">&deg; <button type="submit">GO</button></form></li>
     {% endif %}

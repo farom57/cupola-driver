@@ -481,15 +481,15 @@ async def setup():
 
     arg = request.args.get('park')
     if arg is not None:
-        dome.turn_azimuth(dome.park_azimuth)
+        await dome.turn_azimuth(dome.park_azimuth)
 
     arg = request.args.get('home')
     if arg is not None:
-        dome.turn_azimuth(dome.home_azimuth)
+        await dome.turn_azimuth(dome.home_azimuth)
 
     arg = request.args.get('azimuth')
     if arg is not None:
-        dome.turn_azimuth(float(arg))
+        await dome.turn_azimuth(float(arg))
 
     arg = request.args.get('reset')
     if arg is not None and arg.lower() == 'true':
@@ -497,7 +497,7 @@ async def setup():
 
     return render_template('setup.html', connected=dome.connected, address=dome.address, calibrating=dome.calibrating,
                            calibrated=dome.calibrated, command=dome.command,
-                           azimuth=dome.azimuth, err=dome.mag_error)
+                           azimuth=dome.azimuth, err=dome.mag_error, target=dome._target_azimuth)
 
 
 @app.route('/setup/v1/dome/0/calib')
