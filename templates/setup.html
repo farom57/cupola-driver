@@ -16,6 +16,10 @@
     <li>Connexion : <strong style="color:red">NOK</strong>, <a href="setup?connect=true">Connecter</a></li>
     {% endif %}
 
+    {% if connected %}
+    <li>Batterie :  {{ battery }} V</li>
+    {% endif %}
+
     {% if calibrated %}
     <li><a href="calib">Calibration</a> : <strong style="color:green">OK</strong></li>
     {% elif calibrating %}

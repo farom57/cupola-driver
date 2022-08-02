@@ -49,6 +49,8 @@ class Cupola(object):
         self._calibrating = False
         self._target_azimuth = None
 
+        self.battery = None # Battery voltage
+
         # BLE
         self._connected = False
         self._address = address  # normally 5B:AB:B6:09:F8:CD but it may change at each new firmware
@@ -61,6 +63,7 @@ class Cupola(object):
         self._MAG_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503135" # for filtered mag measurements
         self._ALIVE_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503151"
         self._RFCMD_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503171"
+        self._BATTERY_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503101"
 
         # saved data, first set defaults
         self._calibrated = False
@@ -144,6 +147,9 @@ class Cupola(object):
         if not self._connected:
             print('Failed to establish the connection')
             return
+
+        self.battery = await self._client.read_gatt_char(self._BATTERY_UUID)
+        self.battery=self.battery.decode()
 
         print('[connected]')
         await self._client.start_notify(self._MAG_UUID, self.notification_handler)

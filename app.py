@@ -497,7 +497,7 @@ async def setup():
 
     return render_template('setup.html', connected=dome.connected, address=dome.address, calibrating=dome.calibrating,
                            calibrated=dome.calibrated, command=dome.command,
-                           azimuth=dome.azimuth, err=dome.mag_error, target=dome._target_azimuth)
+                           azimuth=dome.azimuth, err=dome.mag_error, target=dome._target_azimuth, battery=dome.battery)
 
 
 @app.route('/setup/v1/dome/0/calib')
