@@ -1,6 +1,4 @@
-import asyncio
 import io
-import threading
 
 from flask import Flask, request, Response, render_template, redirect, abort
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
@@ -462,10 +460,6 @@ async def setup():
         if arg.lower() == 'false':
             await dome.disconnect()
 
-    arg = request.args.get('autoconnect')
-    if arg is not None:
-        await dome.auto_connect()
-
     arg = request.args.get('stop')
     if arg is not None:
         await dome.turn_stop()
@@ -545,7 +539,7 @@ async def setup():
     return render_template('setup.html', connected=dome.connected, address=dome.address, calibrating=dome.calibrating,
                            calibrated=dome.calibrated, command=dome.command, azimuth=dome.azimuth, err=dome.mag_error,
                            target=dome._target_azimuth, mount_connected=mount_connected, ha=ha, de=de, tracking=tracking,
-                           tracking_target=tracking_target, tracking_tolerance=tracking_tolerance)
+                           tracking_target=tracking_target, tracking_tolerance=tracking_tolerance, battery=dome.battery)
 
 
 @app.route('/setup/v1/dome/0/calib')
@@ -602,5 +596,3 @@ if __name__ == "__main__":
     #x = threading.Thread(target=autoconnect_thread)
     #x.start()
     app.run(debug=True, port=5555, host="0.0.0.0")
-
-

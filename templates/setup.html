@@ -66,6 +66,10 @@
     <li>Connexion monture : <strong style="color:red">NOK</strong> </li>
     {% endif %}
 
+    {% if connected %}
+    <li>Batterie :  {{ battery }} V</li>
+    {% endif %}
+
     {% if calibrated %}
     <li><a href="calib">Calibration</a> : <strong style="color:green">OK</strong></li>
     {% elif calibrating %}

@@ -60,6 +60,8 @@ class Cupola(object):
 
         self.pwi4=PWI4()
 
+        self.battery = None # Battery voltage
+
         # BLE
         self._connected = False
         self._address = address  # normally 5B:AB:B6:09:F8:CD but it may change at each new firmware
@@ -72,6 +74,7 @@ class Cupola(object):
         self._MAG_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503135" # for filtered mag measurements
         self._ALIVE_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503151"
         self._RFCMD_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503171"
+        self._BATTERY_UUID = "c3fe2f77-e1c8-4b1c-a0f3-ef88d0503101"
 
         # saved data, first set defaults
         self._calibrated = False
@@ -90,8 +93,6 @@ class Cupola(object):
             asyncio.set_event_loop(loop)
             loop.run_forever()
 
-
-
         self._thread = Thread(target=bleak_thread, args=(self._ble_loop,))
         self._thread.start()
         self._cmd_lock = None  # lock to ensure that there is no concurrent operation on the rfcmd characteristic
@@ -100,7 +101,6 @@ class Cupola(object):
         self._disconnected_event = EventTs()
         self._disconnect_command = EventTs()
         self._connected_event = EventTs()
-
 
     def __del__(self):
         print('Stopping')
@@ -143,8 +143,6 @@ class Cupola(object):
         print('[returned]')
         return self._connected
 
-
-
     async def maintain_connection(self):
         print('[connecting]')
         try:
@@ -160,6 +158,9 @@ class Cupola(object):
         if not self._connected:
             print('Failed to establish the connection')
             return
+
+        self.battery = await self._client.read_gatt_char(self._BATTERY_UUID)
+        self.battery=self.battery.decode()
 
         print('[connected]')
         await self._client.start_notify(self._MAG_UUID, self.notification_handler)
@@ -267,7 +268,6 @@ class Cupola(object):
                 if delta < 0 and self._command == 4:
                     await self.turn_stop()
                     self._target_azimuth = None
-
 
     async def start_calib(self):
         self.reset_calib()
