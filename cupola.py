@@ -8,7 +8,8 @@ import datetime
 import csv
 import numpy as np
 import math
-
+from pwi4_client import PWI4
+from geometry import to_deg, to_rad, mod, compute_azimuth
 
 # thread-safe event
 class EventTs(asyncio.Event):
@@ -49,6 +50,16 @@ class Cupola(object):
         self._calibrating = False
         self._target_azimuth = None
 
+        # Geometry
+        self.mount_origin = np.array([0, 100, 0])
+        self.dome_radius = 3200  # the center of the dome is 0,0,0
+        self.opening_width = 1000
+        self.scope_offset = [300, -300]  # offset between the mount origin and the scope: positive to the east when the mount is pointing the south
+        self.scope_diameter = [400, 150]
+        self.scopes = [0, 1] # scopes enabled for tracking. Empty list for disabled tracking
+
+        self.pwi4=PWI4()
+
         # BLE
         self._connected = False
         self._address = address  # normally 5B:AB:B6:09:F8:CD but it may change at each new firmware
@@ -79,6 +90,8 @@ class Cupola(object):
             asyncio.set_event_loop(loop)
             loop.run_forever()
 
+
+
         self._thread = Thread(target=bleak_thread, args=(self._ble_loop,))
         self._thread.start()
         self._cmd_lock = None  # lock to ensure that there is no concurrent operation on the rfcmd characteristic
@@ -87,6 +100,7 @@ class Cupola(object):
         self._disconnected_event = EventTs()
         self._disconnect_command = EventTs()
         self._connected_event = EventTs()
+
 
     def __del__(self):
         print('Stopping')
@@ -129,6 +143,8 @@ class Cupola(object):
         print('[returned]')
         return self._connected
 
+
+
     async def maintain_connection(self):
         print('[connecting]')
         try:
@@ -155,7 +171,7 @@ class Cupola(object):
         disconnected_event_task = asyncio.create_task(self._disconnected_event.wait())
         disconnect_command_task = asyncio.create_task(self._disconnect_command.wait())
 
-        # write to the alive char every 5s. Monitor for disconnect tast or event
+        # write to the alive char every 5s. Monitor for disconnect task or event
         while True:
             read_alive_task = asyncio.create_task(self._client.read_gatt_char(self._ALIVE_UUID))
             done, pending = await asyncio.wait([disconnected_event_task, disconnect_command_task, read_alive_task],
@@ -227,15 +243,31 @@ class Cupola(object):
             self.compute_calibration()
             self._calibrating = False
 
-        if self._azimuth is not None and self._target_azimuth is not None:
-            delta = self._target_azimuth - self._azimuth
-            delta = ((delta + 180) % 360) - 180
-            if delta > 0 and self._command == 3:
-                await self.turn_stop()
-                self._target_azimuth = None
-            if delta < 0 and self._command == 4:
-                await self.turn_stop()
-                self._target_azimuth = None
+        if self._azimuth is not None:
+            if self.scopes:
+                az_opt,tol = self.azimuth_from_mount()
+                tol = max(tol,5)
+                delta = az_opt - self._azimuth
+                delta = ((delta + 180) % 360) - 180
+                if delta > 0 and self._command == 3:
+                    await self.turn_stop()
+                if delta < 0 and self._command == 4:
+                    await self.turn_stop()
+                if delta < -tol and self._command != 3:
+                    await self.turn_left()
+                if delta > tol and self._command != 4:
+                    await self.turn_right()
+
+            elif self._target_azimuth is not None:
+                delta = self._target_azimuth - self._azimuth
+                delta = ((delta + 180) % 360) - 180
+                if delta > 0 and self._command == 3:
+                    await self.turn_stop()
+                    self._target_azimuth = None
+                if delta < 0 and self._command == 4:
+                    await self.turn_stop()
+                    self._target_azimuth = None
+
 
     async def start_calib(self):
         self.reset_calib()
@@ -448,3 +480,26 @@ class Cupola(object):
     @property
     def address(self):
         return self._address
+
+
+
+    def azimuth_from_mount(self):
+        if not self.scopes:
+            return 0,180
+
+
+        try:
+            s = self.pwi4.status()
+        except Exception as e:
+            return 0, 180
+
+        if not s.mount.is_connected:
+            return 0,180
+
+        ha = to_rad((s.site.lmst_hours - s.mount.ra_apparent_hours) * 15)
+        de = to_rad(s.mount.dec_apparent_degs)
+        lat = to_rad(s.site.latitude_degs)
+        az_opt, tolerance, az_scope, el_scope = compute_azimuth(ha, de, lat, self.mount_origin, self.dome_radius,
+            self.opening_width, [self.scope_diameter[i] for i in self.scopes], [self.scope_offset[i] for i in self.scopes])
+
+        return to_deg(az_opt), to_deg(tolerance)

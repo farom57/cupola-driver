@@ -1,15 +1,18 @@
+import asyncio
 import io
+import threading
 
 from flask import Flask, request, Response, render_template, redirect, abort
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
 from werkzeug.datastructures import MultiDict
-
+from pwi4_client import PWI4
 from cupola import Cupola
 
 app = Flask(__name__)
 server_transaction_id = 0
 dome = Cupola()
+pwi4 = PWI4()
 
 
 @app.route('/')
@@ -459,6 +462,10 @@ async def setup():
         if arg.lower() == 'false':
             await dome.disconnect()
 
+    arg = request.args.get('autoconnect')
+    if arg is not None:
+        await dome.auto_connect()
+
     arg = request.args.get('stop')
     if arg is not None:
         await dome.turn_stop()
@@ -495,9 +502,50 @@ async def setup():
     if arg is not None and arg.lower() == 'true':
         dome.log_measurements = []
 
+    arg = request.args.get('track_OFF')
+    if arg is not None:
+        dome.scopes = []
+
+    arg = request.args.get('track_T400')
+    if arg is not None:
+        dome.scopes = [0]
+
+    arg = request.args.get('track_APO')
+    if arg is not None:
+        dome.scopes = [1]
+
+    arg = request.args.get('track_both')
+    if arg is not None:
+        dome.scopes = [0,1]
+
+
+    try:
+        pwi4_status = pwi4.status()
+        mount_connected = pwi4_status.mount.is_connected
+        ha = (pwi4_status.site.lmst_hours - pwi4_status.mount.ra_apparent_hours) * 15
+        de = pwi4_status.mount.dec_apparent_degs
+        tracking_target, tracking_tolerance = dome.azimuth_from_mount()
+    except Exception as e:
+        mount_connected = False
+        ha = 0
+        de = 0
+        tracking_target = 0
+        tracking_tolerance = 0
+
+
+    if not dome.scopes:
+        tracking = 0
+    elif dome.scopes == [0]:
+        tracking = 1
+    elif dome.scopes == [1]:
+        tracking = 2
+    else:
+        tracking = 3
+
     return render_template('setup.html', connected=dome.connected, address=dome.address, calibrating=dome.calibrating,
-                           calibrated=dome.calibrated, command=dome.command,
-                           azimuth=dome.azimuth, err=dome.mag_error, target=dome._target_azimuth)
+                           calibrated=dome.calibrated, command=dome.command, azimuth=dome.azimuth, err=dome.mag_error,
+                           target=dome._target_azimuth, mount_connected=mount_connected, ha=ha, de=de, tracking=tracking,
+                           tracking_target=tracking_target, tracking_tolerance=tracking_tolerance)
 
 
 @app.route('/setup/v1/dome/0/calib')
@@ -539,6 +587,20 @@ async def calib():
                            total=dome.CALIB_DURATION, offset=dome.calib_offset, parking=dome.park_azimuth,
                            home=dome.home_azimuth)
 
+def autoconnect_thread():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    while(True):
+        if not dome.connected:
+            asyncio.run(dome.connect())
+        else:
+            asyncio.run(asyncio.sleep(1))
+
+
 
 if __name__ == "__main__":
+    #x = threading.Thread(target=autoconnect_thread)
+    #x.start()
     app.run(debug=True, port=5555, host="0.0.0.0")
+
+

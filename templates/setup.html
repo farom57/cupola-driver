@@ -11,9 +11,59 @@
 <h2 style="color: #2e6c80;">&Eacute;tat</h2>
 <ul>
     {% if connected %}
-    <li>Connexion : <strong style="color:green">OK</strong>, addresse {{ address }}, <a href="setup?connect=false">D&eacute;connecter</a></li>
+    <li>Connexion coupole : <strong style="color:green">OK</strong>, <a href="setup?connect=false">D&eacute;connecter</a></li>
+
+    <ul>
+        <li>Addresse {{ address }}
+        </li>
+        {% if calibrated %}
+        <li>Azimut :
+            {% if azimuth is not none %}
+            {{'%.1f' % azimuth}}&deg;
+            {% else %}
+            N/A
+            {% endif %}
+        </li>
+        <li>R&eacute;sidus :
+            {% if err is not none %}
+            {{'%.1f' % err}}&micro;T
+            {% else %}
+            N/A
+            {% endif %}
+        </li>
+        <li>Cible :
+            {% if target is not none %}
+            {{'%.1f' % target}}&deg;
+            {% else %}
+            N/A
+            {% endif %}
+        </li>
+        {% endif %}
+        {% if command == 3 %}
+        <li>Commande actuelle : Gauche <strong><a href="setup?stop">STOP !</a></strong></li>
+        {% elif command == 4 %}
+        <li>Commande actuelle : Droite <strong><a href="setup?stop">STOP !</a></strong></li>
+        {% elif command == 1 %}
+        <li>Commande actuelle : Ouverture <strong><a href="setup?stop">STOP !</a></strong></li>
+        {% elif command == 2 %}
+        <li>Commande actuelle : Fermeture <strong><a href="setup?stop">STOP !</a></strong></li>
+        {% else %}
+        <li>Commande actuelle : Aucune</li>
+        {% endif %}
+    </ul>
+
     {% else %}
-    <li>Connexion : <strong style="color:red">NOK</strong>, <a href="setup?connect=true">Connecter</a></li>
+    <li>Connexion coupole : <strong style="color:red">NOK</strong>, <a href="setup?connect=true">Connecter</a></li>
+    {% endif %}
+
+    {% if mount_connected %}
+    <li>Connexion monture : <strong style="color:green">OK</strong> </li>
+    <ul>
+        <li>Angle horaire {{'%.1f' % ha}}&deg;</li>
+        <li>Declinaison {{'%.1f' % de}}&deg;</li>
+    </ul>
+    {% else %}
+    <li>Connexion monture : <strong style="color:red">NOK</strong> </li>
     {% endif %}
 
     {% if calibrated %}
@@ -24,47 +74,50 @@
     <li><a href="calib">Calibration</a> : <strong style="color:red">NOK</strong></li>
     {% endif %}
 
-    {% if connected and calibrated %}
-    <li>Azimut :
-        {% if azimuth is not none %}
-        {{'%.1f' % azimuth}}&deg;
-        {% else %}
-        N/A
-        {% endif %}
-    </li>
-    <li>R&eacute;sidus :
-        {% if err is not none %}
-        {{'%.1f' % err}}&micro;T
-        {% else %}
-        N/A
-        {% endif %}
-    </li>
-    <li>Cible :
-        {% if target is not none %}
-        {{'%.1f' % target}}&deg;
-        {% else %}
-        N/A
-        {% endif %}
-    </li>
-    {% endif %}
 
-
-
-    {% if connected %}
-    {% if command == 3 %}
-    <li>Commande actuelle : Gauche <strong><a href="setup?stop">STOP !</a></strong></li>
-    {% elif command == 4 %}
-    <li>Commande actuelle : Droite <strong><a href="setup?stop">STOP !</a></strong></li>
-    {% elif command == 1 %}
-    <li>Commande actuelle : Ouverture <strong><a href="setup?stop">STOP !</a></strong></li>
-    {% elif command == 2 %}
-    <li>Commande actuelle : Fermeture <strong><a href="setup?stop">STOP !</a></strong></li>
-    {% else %}
-    <li>Commande actuelle : Aucune</li>
-    {% endif %}
-    {% endif %}
 
 </ul>
+{% if connected and mount_connected %}
+<h2 style="color: #2e6c80;">Tracking</h2>
+    {% if tracking == 0 %}
+    Suivi: <strong style="color:red">OFF</strong>
+    <ul>
+    <li><a href="setup?track_T400">Suivre le telescope</a></li>
+    <li><a href="setup?track_APO">Suivre la lunette</a></li>
+    <li><a href="setup?track_both">Suivre le telescope et la lunette</a></li>
+    </ul>
+    {% endif %}
+    {% if tracking == 1 %}
+    Suivi: <strong style="color:green">ON</strong> telescope
+    <ul>
+    <li><a href="setup?track_OFF">Arreter le suivi</a></li>
+    <li><a href="setup?track_APO">Suivre la lunette</a></li>
+    <li><a href="setup?track_both">Suivre le telescope et la lunette</a></li>
+    </ul>
+    {% endif %}
+    {% if tracking == 2 %}
+    Suivi: <strong style="color:green">ON</strong> lunette
+    <ul>
+    <li><a href="setup?track_OFF">Arreter le suivi</a></li>
+    <li><a href="setup?track_T400">Suivre le telescope</a></li>
+    <li><a href="setup?track_both">Suivre le telescope et la lunette</a></li>
+    </ul>
+    {% endif %}
+    {% if tracking == 3 %}
+    Suivi: <strong style="color:green">ON</strong> telescope et lunette
+    <ul>
+    <li><a href="setup?track_OFF">Arreter le suivi</a></li>
+    <li><a href="setup?track_T400">Suivre le telescope</a></li>
+    <li><a href="setup?track_APO">Suivre la lunette</a></li>
+    </ul>
+    {% endif %}
+    Azimuth optimal : {{'%.1f' % tracking_target}}&deg; <br/>
+    {% if tracking_tolerance > 0 %}
+    Tolerance : {{'%.1f' % tracking_tolerance}}&deg; <br/>
+    {% else %}
+    Tolerance : <strong style="color:red">{{'%.1f' % tracking_tolerance}}&deg; </strong><br/>
+    {% endif %}
+{% endif %}
 
 {% if connected %}
 <h2 style="color: #2e6c80;">Commandes</h2>
