@@ -12,7 +12,6 @@ server_transaction_id = 0
 dome = Cupola()
 pwi4 = PWI4()
 
-
 @app.route('/')
 def index():
     return redirect('setup')

@@ -200,6 +200,7 @@ class Cupola(object):
                     task.cancel()
                 break
 
+
         if self._client.is_connected:
             await self._client.disconnect()
         self._connected = False

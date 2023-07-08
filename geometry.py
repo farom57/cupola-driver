@@ -35,6 +35,7 @@ def reverse(az,el,lat):
     de = asin(ra_vec[2])
     return ha, de
 
+
 def intersect(org, dir, radius):
     # compute the intersection between a half-line and a sphere
     # the line is defined by the origin and a direction:
